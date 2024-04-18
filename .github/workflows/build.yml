@@ -18,11 +18,13 @@ jobs:
         with:
           java-version: 17
           distribution: 'zulu'
-
+      - name: Set JAVA_HOME and PATH
+        run: |
+          echo "JAVA_HOME=${{ steps.setup-java.outputs.java-home }}" >> $GITHUB_ENV
+          echo "$JAVA_HOME/bin" >> $GITHUB_PATH
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
-
       - name: SonarScanner for .NET with pull request decoration support
         uses: highbyte/sonarscan-dotnet@v2.3.2
         with:
