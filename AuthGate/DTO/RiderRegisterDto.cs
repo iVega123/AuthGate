@@ -18,7 +18,7 @@ namespace AuthGate.DTO
         public required string NumeroCNH { get; set; }
         
         public required string TipoCNH { get; set; }
-        
-        public required string ImagemCNH { get; set; }
+
+        public IFormFile ImagemCNH { get; set; }
     }
 }

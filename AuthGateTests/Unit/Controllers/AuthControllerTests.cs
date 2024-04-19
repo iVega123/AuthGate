@@ -12,6 +12,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using AuthGateTests.Unit.Faker;
 using Microsoft.Extensions.Configuration;
+using System.IO;
 
 namespace AuthGateTests.Unit.Controllers
 {
@@ -242,6 +243,16 @@ namespace AuthGateTests.Unit.Controllers
             userManagerMock.Setup(mock => mock.AddToRoleAsync(It.IsAny<RiderUser>(), "Rider"))
                        .ReturnsAsync(IdentityResult.Success);
             var controller = new AuthController(userManagerMock.Object, signInManagerMock.Object, roleManagerMock.Object, mockConfig.Object, mockLogger.Object);
+            //mock file
+            var content = "Hello World from a Fake File";
+            var fileName = "test.pdf";
+            var stream = new MemoryStream();
+            var writer = new StreamWriter(stream);
+            writer.Write(content);
+            writer.Flush();
+            stream.Position = 0;
+            IFormFile file = new FormFile(stream, 0, stream.Length, "id_from_form", fileName);
+
             var model = new RiderRegisterDto
             {
                 Email = "test@example.com",
@@ -250,7 +261,7 @@ namespace AuthGateTests.Unit.Controllers
                 DataNascimento = new System.DateTime(1990, 1, 1),
                 NumeroCNH = "1234567890",
                 TipoCNH = "A",
-                ImagemCNH = "base64encodedimage"
+                ImagemCNH = file
             };
 
             // Act
@@ -272,6 +283,16 @@ namespace AuthGateTests.Unit.Controllers
             var controller = new AuthController(userManagerMock.Object, signInManagerMock.Object, roleManagerMock.Object, mockConfig.Object, mockLogger.Object);
             controller.ModelState.AddModelError("Email", "Email is required.");
 
+            //mock file
+            var content = "Hello World from a Fake File";
+            var fileName = "test.pdf";
+            var stream = new MemoryStream();
+            var writer = new StreamWriter(stream);
+            writer.Write(content);
+            writer.Flush();
+            stream.Position = 0;
+            IFormFile file = new FormFile(stream, 0, stream.Length, "id_from_form", fileName);
+
             var model = new RiderRegisterDto
             {
                 Email = "test",
@@ -280,7 +301,7 @@ namespace AuthGateTests.Unit.Controllers
                 DataNascimento = new System.DateTime(1990, 1, 1),
                 NumeroCNH = "1234567890",
                 TipoCNH = "A",
-                ImagemCNH = "base64encodedimage"
+                ImagemCNH = file
             };
 
             // Act
@@ -303,6 +324,16 @@ namespace AuthGateTests.Unit.Controllers
                            .ReturnsAsync(IdentityResult.Failed(error));
 
             var controller = new AuthController(userManagerMock.Object, signInManagerMock.Object, roleManagerMock.Object, mockConfig.Object, mockLogger.Object);
+
+            //mock file
+            var content = "Hello World from a Fake File";
+            var fileName = "test.pdf";
+            var stream = new MemoryStream();
+            var writer = new StreamWriter(stream);
+            writer.Write(content);
+            writer.Flush();
+            stream.Position = 0;
+            IFormFile file = new FormFile(stream, 0, stream.Length, "id_from_form", fileName);
             var model = new RiderRegisterDto
             {
                 Email = "test@example.com",
@@ -311,7 +342,7 @@ namespace AuthGateTests.Unit.Controllers
                 DataNascimento = new System.DateTime(1990, 1, 1),
                 NumeroCNH = "33022684637",
                 TipoCNH = "A",
-                ImagemCNH = "base64encodedimage"
+                ImagemCNH = file
             };
 
             // Act

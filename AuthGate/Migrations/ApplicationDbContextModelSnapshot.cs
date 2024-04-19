@@ -50,14 +50,14 @@ namespace AuthGate.Migrations
                     b.HasData(
                         new
                         {
-                            Id = "c85cbd12-b40e-40e0-86d3-b756b7766dcb",
+                            Id = "f034fb12-d12e-4fde-9f0c-0cbd07042014",
                             ConcurrencyStamp = "1",
                             Name = "Admin",
                             NormalizedName = "ADMIN"
                         },
                         new
                         {
-                            Id = "4ecccc42-91c0-47f4-9ac9-9728dffc854f",
+                            Id = "58b203f6-1beb-4647-b7cf-040d012861a0",
                             ConcurrencyStamp = "2",
                             Name = "Rider",
                             NormalizedName = "RIDER"

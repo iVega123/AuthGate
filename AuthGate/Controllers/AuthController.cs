@@ -78,7 +78,7 @@ namespace AuthGate.Controllers
 
 
         [HttpPost("register/rider")]
-        public async Task<IActionResult> RegisterRider([FromBody] RiderRegisterDto model)
+        public async Task<IActionResult> RegisterRider([FromForm] RiderRegisterDto model)
         {
 
             if (!ModelState.IsValid)
@@ -107,7 +107,7 @@ namespace AuthGate.Controllers
                 DataNascimento = model.DataNascimento,
                 NumeroCNH = model.NumeroCNH,
                 TipoCNH = parsedCNHType,
-                ImagemCNH = model.ImagemCNH
+                ImagemCNH = ""
             };
 
             var result = await _userManager.CreateAsync(riderUser, model.Password);
@@ -161,7 +161,8 @@ namespace AuthGate.Controllers
             var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.Name, user.UserName),
-                new Claim(ClaimTypes.Email, user.Email)
+                new Claim(ClaimTypes.Email, user.Email),
+                new Claim(ClaimTypes.NameIdentifier, user.Id)
             };
 
             foreach (var role in roles)
