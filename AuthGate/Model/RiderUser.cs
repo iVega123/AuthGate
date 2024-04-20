@@ -12,7 +12,7 @@ namespace AuthGate.Model
     public class RiderUser : ApplicationUser
     {
         [Required]
-        [StringLength(14)]
+        [StringLength(20)]
         [RegularExpression(
             @"([0-9]{2}[\.]?[0-9]{3}[\.]?[0-9]{3}[\/]?[0-9]{4}[-]?[0-9]{2})", 
             ErrorMessage = "O CNPJ deve estar no formato XX.XXX.XXX/XXXX-XX")]
@@ -29,7 +29,5 @@ namespace AuthGate.Model
         [Required]
         [EnumDataType(typeof(TipoCNH))]
         public TipoCNH TipoCNH { get; set; }
-
-        public required string ImagemCNH { get; set; }
     }
 }

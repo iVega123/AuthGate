@@ -7,6 +7,9 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using AuthGate.Validators;
+using AuthGate.Services.File;
+using AuthGate.Services.RabbitMQ;
+using AuthGate.Entities;
 
 namespace AuthGate.Controllers
 {
@@ -19,13 +22,17 @@ namespace AuthGate.Controllers
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly string _jwtKey;
         private readonly ILogger<AuthController> _logger;
+        private readonly IFileValidationService _fileValidationService;
+        private readonly IMessagingPublisherService _messagingPublisherService;
 
         public AuthController(
             UserManager<ApplicationUser> userManager,
             SignInManager<ApplicationUser> signInManager,
             RoleManager<IdentityRole> roleManager,
             IConfiguration configuration,
-            ILogger<AuthController> logger
+            ILogger<AuthController> logger,
+            IFileValidationService fileValidationService,
+            IMessagingPublisherService messagingPublisherService
             )
         {
             _userManager = userManager;
@@ -33,6 +40,8 @@ namespace AuthGate.Controllers
             _roleManager = roleManager;
             _jwtKey = configuration["JwtKey"];
             _logger = logger;
+            _fileValidationService = fileValidationService;
+            _messagingPublisherService = messagingPublisherService;
         }
 
         [HttpPost("register/admin")]
@@ -106,9 +115,10 @@ namespace AuthGate.Controllers
                 CNPJ = model.CNPJ,
                 DataNascimento = model.DataNascimento,
                 NumeroCNH = model.NumeroCNH,
-                TipoCNH = parsedCNHType,
-                ImagemCNH = ""
+                TipoCNH = parsedCNHType
             };
+
+            var (file, ext) = await _fileValidationService.ValidateAndConvertFileAsync(model.ImagemCNH);
 
             var result = await _userManager.CreateAsync(riderUser, model.Password);
             if (!result.Succeeded)
@@ -127,9 +137,12 @@ namespace AuthGate.Controllers
                 return BadRequest(roleAssignmentResult.Errors);
             }
 
-            _logger.LogInformation("Rider user {UserId} successfully registered and signed in.", riderUser.Id);
-            await _signInManager.SignInAsync(riderUser, isPersistent: false);
-            return Ok(new { UserId = riderUser.Id });
+            _logger.LogInformation("Rider user {UserId} successfully registered.", riderUser.Id);
+
+            _messagingPublisherService.PublishImageStream(file, ext, riderUser.Id);
+            _messagingPublisherService.PublishRiderInfo(convertRider(model, riderUser.Id));
+
+            return Ok("Rider user successfully registered.");
         }
 
         [HttpPost("login")]
@@ -200,6 +213,20 @@ namespace AuthGate.Controllers
             await _signInManager.SignOutAsync();
             _logger.LogInformation("User {Email} logged out successfully", model.Email);
             return Ok();
+        }
+
+
+        private RiderMQEntity convertRider(RiderRegisterDto model, string id)
+        {
+            return new RiderMQEntity()
+            {
+                UserId = id,
+                CNHNumber = model.NumeroCNH,
+                CNPJ = model.CNPJ,
+                CNHType = model.TipoCNH,
+                DataNascimento = model.DataNascimento,
+                Email = model.Email,
+            };
         }
     }
 }
