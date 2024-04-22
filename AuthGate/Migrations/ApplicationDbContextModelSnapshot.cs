@@ -50,14 +50,14 @@ namespace AuthGate.Migrations
                     b.HasData(
                         new
                         {
-                            Id = "c85cbd12-b40e-40e0-86d3-b756b7766dcb",
+                            Id = "06ee79b8-d618-44d6-96ce-95263fea0173",
                             ConcurrencyStamp = "1",
                             Name = "Admin",
                             NormalizedName = "ADMIN"
                         },
                         new
                         {
-                            Id = "4ecccc42-91c0-47f4-9ac9-9728dffc854f",
+                            Id = "689fe083-2735-4518-a9c0-ffe5e57f08d5",
                             ConcurrencyStamp = "2",
                             Name = "Rider",
                             NormalizedName = "RIDER"
@@ -260,15 +260,11 @@ namespace AuthGate.Migrations
 
                     b.Property<string>("CNPJ")
                         .IsRequired()
-                        .HasMaxLength(14)
-                        .HasColumnType("character varying(14)");
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
 
                     b.Property<DateTime>("DataNascimento")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ImagemCNH")
-                        .IsRequired()
-                        .HasColumnType("text");
 
                     b.Property<string>("NumeroCNH")
                         .IsRequired()

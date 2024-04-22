@@ -4,6 +4,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using AuthGate.Data;
+using Moq;
+using RabbitMQ.Client;
 
 namespace AuthGateTests.Integration
 {
@@ -13,14 +15,31 @@ namespace AuthGateTests.Integration
         {
             builder.ConfigureServices(services =>
             {
-                // Remove the existing DbContext configuration
+                var modelMock = new Mock<IModel>();
+                modelMock.Setup(m => m.BasicPublish(
+                    It.IsAny<string>(),
+                    It.IsAny<string>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<IBasicProperties>(),
+                    It.IsAny<ReadOnlyMemory<byte>>()));
+
+                var connectionMock = new Mock<IConnection>();
+                connectionMock.Setup(conn => conn.CreateModel()).Returns(modelMock.Object);
+
+                var descriptors = services.SingleOrDefault(
+                    d => d.ServiceType == typeof(IConnection));
+                if (descriptors != null)
+                {
+                    services.Remove(descriptors);
+                }
+
+                services.AddSingleton<IConnection>(connectionMock.Object);
                 var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<ApplicationDbContext>));
                 if (descriptor != null)
                 {
                     services.Remove(descriptor);
                 }
 
-                // Add an in-memory database for testing
                 services.AddDbContext<ApplicationDbContext>(options =>
                 {
                     options.UseInMemoryDatabase("TestingDB");
@@ -29,13 +48,14 @@ namespace AuthGateTests.Integration
 
             builder.ConfigureAppConfiguration((context, configBuilder) =>
             {
+                context.HostingEnvironment.EnvironmentName = "Testing";
+
                 var integrationTestConfig = new Dictionary<string, string>
                 {
                     {"JwtKey", "pnXhunyWll1LgERT86wXwMH5I6ieQC2M"}
                 };
 
                 configBuilder.Sources.Clear();
-
                 configBuilder.AddInMemoryCollection(integrationTestConfig);
             });
         }

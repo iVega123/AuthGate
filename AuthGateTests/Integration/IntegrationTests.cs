@@ -1,4 +1,5 @@
 ﻿using AuthGate.DTO;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net;
@@ -57,27 +58,38 @@ namespace AuthGateTests.Integration
         [Fact]
         public async Task RegisterRider_ValidModel_ReturnsOk()
         {
+            //mock file
+            var content = "Hello World from a Fake File";
+            var fileName = "test.png";
+            var stream = new MemoryStream();
+            var writer = new StreamWriter(stream);
+            writer.Write(content);
+            writer.Flush();
+            stream.Position = 0;
+            IFormFile file = new FormFile(stream, 0, stream.Length, "id_from_form", fileName);
+
             // Arrange
             var client = _factory.CreateClient();
-            var model = new RiderRegisterDto
-            {
-                Email = "rider@example.com",
-                Password = "A$Slol123ok",
-                CNPJ = "92.805.586/0001-80",
-                DataNascimento = DateTime.Now.AddYears(-30),
-                NumeroCNH = "33022684637",
-                TipoCNH = "A",
-                ImagemCNH = "base64-encoded-image-data"
-            };
+
+            // Create MultipartFormDataContent to hold form data
+            var formData = new MultipartFormDataContent();
+            formData.Add(new StringContent("Caio"), "Name");
+            formData.Add(new StringContent("rider@example.com"), "Email");
+            formData.Add(new StringContent("A$Slol123ok"), "Password");
+            formData.Add(new StringContent("92.805.586/0001-80"), "CNPJ");
+            formData.Add(new StringContent(DateTime.Now.AddYears(-30).ToString()), "DateOfBirth");
+            formData.Add(new StringContent("33022684637"), "CNHNumber");
+            formData.Add(new StringContent("A"), "CNHType");
+            formData.Add(new StreamContent(stream), "CNHImage", fileName);
 
             // Act
-            var response = await client.PostAsJsonAsync("/api/auth/register/rider", model);
+            var response = await client.PostAsync("/api/auth/register/rider", formData);
 
             // Assert
             response.EnsureSuccessStatusCode();
 
             var responseContent = await response.Content.ReadAsStringAsync();
-            Assert.Contains("userId", responseContent);
+            Assert.Contains("Rider user successfully registered.", responseContent);
         }
 
         [Fact]
@@ -114,21 +126,30 @@ namespace AuthGateTests.Integration
         [Fact]
         public async Task RegisterRider_MissingCNPJ_ReturnsBadRequest()
         {
+            // Mock file
+            var content = "Hello World from a Fake File";
+            var fileName = "test.pdf";
+            var stream = new MemoryStream();
+            var writer = new StreamWriter(stream);
+            writer.Write(content);
+            writer.Flush();
+            stream.Position = 0;
+
             // Arrange
             var client = _factory.CreateClient();
-            var model = new RiderRegisterDto
-            {
-                Email = "incomplete@example.com",
-                Password = "A$Slol123ok",
-                DataNascimento = DateTime.Now.AddYears(-25),
-                NumeroCNH = "9876543210",
-                TipoCNH = "B",
-                ImagemCNH = "base64-encoded-image-data",
-                CNPJ = ""
-            };
+
+            // Create MultipartFormDataContent
+            var formData = new MultipartFormDataContent();
+            formData.Add(new StringContent("incomplete@example.com"), "Email");
+            formData.Add(new StringContent("A$Slol123ok"), "Password");
+            formData.Add(new StringContent(DateTime.Now.AddYears(-25).ToString()), "DataNascimento");
+            formData.Add(new StringContent("9876543210"), "NumeroCNH");
+            formData.Add(new StringContent("B"), "TipoCNH");
+            formData.Add(new StreamContent(stream), "ImagemCNH", fileName);
+            formData.Add(new StringContent(""), "CNPJ"); // Intentionally left blank to test validation
 
             // Act
-            var response = await client.PostAsJsonAsync("/api/auth/register/rider", model);
+            var response = await client.PostAsync("/api/auth/register/rider", formData);
 
             // Assert
             Assert.Equal(System.Net.HttpStatusCode.BadRequest, response.StatusCode);
@@ -225,21 +246,28 @@ namespace AuthGateTests.Integration
         [Fact]
         public async Task RegisterRider_AllInvalidFields_ReturnsBadRequest()
         {
+            // Mock file
+            var content = "Hello World from a Fake File";
+            var fileName = "test.pdf";
+            var stream = new MemoryStream();
+            var writer = new StreamWriter(stream);
+            writer.Write(content);
+            writer.Flush();
+            stream.Position = 0;
+
             // Arrange
             var client = _factory.CreateClient();
-            var model = new RiderRegisterDto
-            {
-                Email = "",
-                Password = "",
-                CNPJ = "",
-                DataNascimento = DateTime.Now,
-                NumeroCNH = "",
-                TipoCNH = "C",
-                ImagemCNH = ""
-            };
+            var formData = new MultipartFormDataContent();
+            formData.Add(new StringContent(""), "Email");
+            formData.Add(new StringContent(""), "Password");
+            formData.Add(new StringContent(""), "CNPJ");
+            formData.Add(new StringContent(DateTime.Now.ToString()), "DataNascimento");
+            formData.Add(new StringContent(""), "NumeroCNH");
+            formData.Add(new StringContent("C"), "TipoCNH");
+            formData.Add(new StreamContent(stream), "ImagemCNH", fileName);
 
             // Act
-            var response = await client.PostAsJsonAsync("/api/auth/register/rider", model);
+            var response = await client.PostAsync("/api/auth/register/rider", formData);
 
             // Assert
             Assert.Equal(System.Net.HttpStatusCode.BadRequest, response.StatusCode);

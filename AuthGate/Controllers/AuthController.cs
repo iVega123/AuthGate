@@ -7,6 +7,9 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using AuthGate.Validators;
+using AuthGate.Services.File;
+using AuthGate.Services.RabbitMQ;
+using AuthGate.Entities;
 
 namespace AuthGate.Controllers
 {
@@ -19,13 +22,17 @@ namespace AuthGate.Controllers
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly string _jwtKey;
         private readonly ILogger<AuthController> _logger;
+        private readonly IFileValidationService _fileValidationService;
+        private readonly IMessagingPublisherService _messagingPublisherService;
 
         public AuthController(
             UserManager<ApplicationUser> userManager,
             SignInManager<ApplicationUser> signInManager,
             RoleManager<IdentityRole> roleManager,
             IConfiguration configuration,
-            ILogger<AuthController> logger
+            ILogger<AuthController> logger,
+            IFileValidationService fileValidationService,
+            IMessagingPublisherService messagingPublisherService
             )
         {
             _userManager = userManager;
@@ -33,6 +40,8 @@ namespace AuthGate.Controllers
             _roleManager = roleManager;
             _jwtKey = configuration["JwtKey"];
             _logger = logger;
+            _fileValidationService = fileValidationService;
+            _messagingPublisherService = messagingPublisherService;
         }
 
         [HttpPost("register/admin")]
@@ -78,7 +87,7 @@ namespace AuthGate.Controllers
 
 
         [HttpPost("register/rider")]
-        public async Task<IActionResult> RegisterRider([FromBody] RiderRegisterDto model)
+        public async Task<IActionResult> RegisterRider([FromForm] RiderRegisterDto model)
         {
 
             if (!ModelState.IsValid)
@@ -92,7 +101,7 @@ namespace AuthGate.Controllers
                 await _roleManager.CreateAsync(new IdentityRole("Rider"));
             }
 
-            var (isValid, parsedCNHType) = CnhValidator.ParseCNHType(model.TipoCNH);
+            var (isValid, parsedCNHType) = CnhValidator.ParseCNHType(model.CNHType);
             if (!isValid)
             {
                 ModelState.AddModelError("TipoCNH", "Invalid CNH Type");
@@ -102,12 +111,12 @@ namespace AuthGate.Controllers
             var riderUser = new RiderUser
             {
                 UserName = model.Email,
+                Name = model.Name,
                 Email = model.Email,
                 CNPJ = model.CNPJ,
-                DataNascimento = model.DataNascimento,
-                NumeroCNH = model.NumeroCNH,
-                TipoCNH = parsedCNHType,
-                ImagemCNH = model.ImagemCNH
+                DateOfBirth = model.DateOfBirth,
+                CNHNumber = model.CNHNumber,
+                CNHType = parsedCNHType
             };
 
             var result = await _userManager.CreateAsync(riderUser, model.Password);
@@ -127,9 +136,16 @@ namespace AuthGate.Controllers
                 return BadRequest(roleAssignmentResult.Errors);
             }
 
-            _logger.LogInformation("Rider user {UserId} successfully registered and signed in.", riderUser.Id);
-            await _signInManager.SignInAsync(riderUser, isPersistent: false);
-            return Ok(new { UserId = riderUser.Id });
+            _logger.LogInformation("Rider user {UserId} successfully registered.", riderUser.Id);
+
+            if (model.CNHImage != null)
+            {
+                var (file, ext) = await _fileValidationService.ValidateAndConvertFileAsync(model.CNHImage);
+                _messagingPublisherService.PublishImageStream(file, ext, riderUser.Id);
+            }
+            _messagingPublisherService.PublishRiderInfo(convertRider(model, riderUser.Id));
+
+            return Ok("Rider user successfully registered.");
         }
 
         [HttpPost("login")]
@@ -161,7 +177,8 @@ namespace AuthGate.Controllers
             var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.Name, user.UserName),
-                new Claim(ClaimTypes.Email, user.Email)
+                new Claim(ClaimTypes.Email, user.Email),
+                new Claim(ClaimTypes.NameIdentifier, user.Id)
             };
 
             foreach (var role in roles)
@@ -199,6 +216,21 @@ namespace AuthGate.Controllers
             await _signInManager.SignOutAsync();
             _logger.LogInformation("User {Email} logged out successfully", model.Email);
             return Ok();
+        }
+
+
+        private RiderMQEntity convertRider(RiderRegisterDto model, string id)
+        {
+            return new RiderMQEntity()
+            {
+                Name = model.Name,
+                UserId = id,
+                CNHNumber = model.CNHNumber,
+                CNPJ = model.CNPJ,
+                CNHType = model.CNHType,
+                DateOfBirth = model.DateOfBirth,
+                Email = model.Email,
+            };
         }
     }
 }

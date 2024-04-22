@@ -9,7 +9,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace AuthGate.Migrations
 {
     /// <inheritdoc />
-    public partial class identityInit : Migration
+    public partial class InitialCreate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -33,6 +33,13 @@ namespace AuthGate.Migrations
                 columns: table => new
                 {
                     Id = table.Column<string>(type: "text", nullable: false),
+                    Discriminator = table.Column<string>(type: "character varying(21)", maxLength: 21, nullable: false),
+                    UserType = table.Column<string>(type: "text", nullable: true),
+                    CNPJ = table.Column<string>(type: "character varying(14)", maxLength: 14, nullable: true),
+                    DataNascimento = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    NumeroCNH = table.Column<string>(type: "character varying(11)", maxLength: 11, nullable: true),
+                    TipoCNH = table.Column<int>(type: "integer", nullable: true),
+                    ImagemCNH = table.Column<string>(type: "text", nullable: true),
                     UserName = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
                     NormalizedUserName = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
                     Email = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
@@ -99,8 +106,8 @@ namespace AuthGate.Migrations
                 name: "AspNetUserLogins",
                 columns: table => new
                 {
-                    LoginProvider = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
-                    ProviderKey = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
+                    LoginProvider = table.Column<string>(type: "text", nullable: false),
+                    ProviderKey = table.Column<string>(type: "text", nullable: false),
                     ProviderDisplayName = table.Column<string>(type: "text", nullable: true),
                     UserId = table.Column<string>(type: "text", nullable: false)
                 },
@@ -144,8 +151,8 @@ namespace AuthGate.Migrations
                 columns: table => new
                 {
                     UserId = table.Column<string>(type: "text", nullable: false),
-                    LoginProvider = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
-                    Name = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
+                    LoginProvider = table.Column<string>(type: "text", nullable: false),
+                    Name = table.Column<string>(type: "text", nullable: false),
                     Value = table.Column<string>(type: "text", nullable: true)
                 },
                 constraints: table =>
@@ -164,8 +171,8 @@ namespace AuthGate.Migrations
                 columns: new[] { "Id", "ConcurrencyStamp", "Name", "NormalizedName" },
                 values: new object[,]
                 {
-                    { "8c6e9ee5-7b30-45cf-acfd-fba491ffcf75", "1", "Admin", "Admin" },
-                    { "ad336fa7-8de9-4cae-bc44-bea25d832057", "2", "User", "User" }
+                    { "58b203f6-1beb-4647-b7cf-040d012861a0", "2", "Rider", "RIDER" },
+                    { "f034fb12-d12e-4fde-9f0c-0cbd07042014", "1", "Admin", "ADMIN" }
                 });
 
             migrationBuilder.CreateIndex(
@@ -198,6 +205,18 @@ namespace AuthGate.Migrations
                 name: "EmailIndex",
                 table: "AspNetUsers",
                 column: "NormalizedEmail");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AspNetUsers_CNPJ",
+                table: "AspNetUsers",
+                column: "CNPJ",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AspNetUsers_NumeroCNH",
+                table: "AspNetUsers",
+                column: "NumeroCNH",
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "UserNameIndex",

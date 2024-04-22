@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace AuthGate.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20240415233407_UpdateUserModel")]
-    partial class UpdateUserModel
+    [Migration("20240419003445_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -53,17 +53,17 @@ namespace AuthGate.Migrations
                     b.HasData(
                         new
                         {
-                            Id = "334854c6-1829-408f-ab02-cb9629c002ca",
+                            Id = "f034fb12-d12e-4fde-9f0c-0cbd07042014",
                             ConcurrencyStamp = "1",
                             Name = "Admin",
-                            NormalizedName = "Admin"
+                            NormalizedName = "ADMIN"
                         },
                         new
                         {
-                            Id = "60d9ada2-226d-4909-8d58-ed766c46c782",
+                            Id = "58b203f6-1beb-4647-b7cf-040d012861a0",
                             ConcurrencyStamp = "2",
-                            Name = "User",
-                            NormalizedName = "User"
+                            Name = "Rider",
+                            NormalizedName = "RIDER"
                         });
                 });
 
@@ -250,6 +250,17 @@ namespace AuthGate.Migrations
                 {
                     b.HasBaseType("Microsoft.AspNetCore.Identity.IdentityUser");
 
+                    b.Property<string>("UserType")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasDiscriminator().HasValue("ApplicationUser");
+                });
+
+            modelBuilder.Entity("AuthGate.Model.RiderUser", b =>
+                {
+                    b.HasBaseType("AuthGate.Model.ApplicationUser");
+
                     b.Property<string>("CNPJ")
                         .IsRequired()
                         .HasMaxLength(14)
@@ -276,7 +287,7 @@ namespace AuthGate.Migrations
                     b.HasIndex("NumeroCNH")
                         .IsUnique();
 
-                    b.HasDiscriminator().HasValue("ApplicationUser");
+                    b.HasDiscriminator().HasValue("RiderUser");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>

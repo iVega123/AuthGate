@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace AuthGate.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20240415211054_identityInit")]
-    partial class identityInit
+    [Migration("20240420031009_AddMoreLength")]
+    partial class AddMoreLength
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -53,17 +53,17 @@ namespace AuthGate.Migrations
                     b.HasData(
                         new
                         {
-                            Id = "8c6e9ee5-7b30-45cf-acfd-fba491ffcf75",
+                            Id = "06ee79b8-d618-44d6-96ce-95263fea0173",
                             ConcurrencyStamp = "1",
                             Name = "Admin",
-                            NormalizedName = "Admin"
+                            NormalizedName = "ADMIN"
                         },
                         new
                         {
-                            Id = "ad336fa7-8de9-4cae-bc44-bea25d832057",
+                            Id = "689fe083-2735-4518-a9c0-ffe5e57f08d5",
                             ConcurrencyStamp = "2",
-                            Name = "User",
-                            NormalizedName = "User"
+                            Name = "Rider",
+                            NormalizedName = "RIDER"
                         });
                 });
 
@@ -103,6 +103,11 @@ namespace AuthGate.Migrations
                     b.Property<string>("ConcurrencyStamp")
                         .IsConcurrencyToken()
                         .HasColumnType("text");
+
+                    b.Property<string>("Discriminator")
+                        .IsRequired()
+                        .HasMaxLength(21)
+                        .HasColumnType("character varying(21)");
 
                     b.Property<string>("Email")
                         .HasMaxLength(256)
@@ -154,6 +159,10 @@ namespace AuthGate.Migrations
                         .HasDatabaseName("UserNameIndex");
 
                     b.ToTable("AspNetUsers", (string)null);
+
+                    b.HasDiscriminator<string>("Discriminator").HasValue("IdentityUser");
+
+                    b.UseTphMappingStrategy();
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<string>", b =>
@@ -184,12 +193,10 @@ namespace AuthGate.Migrations
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<string>", b =>
                 {
                     b.Property<string>("LoginProvider")
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
+                        .HasColumnType("text");
 
                     b.Property<string>("ProviderKey")
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
+                        .HasColumnType("text");
 
                     b.Property<string>("ProviderDisplayName")
                         .HasColumnType("text");
@@ -226,12 +233,10 @@ namespace AuthGate.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("LoginProvider")
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
+                        .HasColumnType("text");
 
                     b.Property<string>("Name")
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
+                        .HasColumnType("text");
 
                     b.Property<string>("Value")
                         .HasColumnType("text");
@@ -239,6 +244,46 @@ namespace AuthGate.Migrations
                     b.HasKey("UserId", "LoginProvider", "Name");
 
                     b.ToTable("AspNetUserTokens", (string)null);
+                });
+
+            modelBuilder.Entity("AuthGate.Model.ApplicationUser", b =>
+                {
+                    b.HasBaseType("Microsoft.AspNetCore.Identity.IdentityUser");
+
+                    b.Property<string>("UserType")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasDiscriminator().HasValue("ApplicationUser");
+                });
+
+            modelBuilder.Entity("AuthGate.Model.RiderUser", b =>
+                {
+                    b.HasBaseType("AuthGate.Model.ApplicationUser");
+
+                    b.Property<string>("CNPJ")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("DataNascimento")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("NumeroCNH")
+                        .IsRequired()
+                        .HasMaxLength(11)
+                        .HasColumnType("character varying(11)");
+
+                    b.Property<int>("TipoCNH")
+                        .HasColumnType("integer");
+
+                    b.HasIndex("CNPJ")
+                        .IsUnique();
+
+                    b.HasIndex("NumeroCNH")
+                        .IsUnique();
+
+                    b.HasDiscriminator().HasValue("RiderUser");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
