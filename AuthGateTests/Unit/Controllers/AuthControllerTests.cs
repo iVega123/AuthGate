@@ -12,13 +12,23 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using AuthGateTests.Unit.Faker;
 using Microsoft.Extensions.Configuration;
+using AuthGate.Services.RabbitMQ;
+using AuthGate.Services.File;
 
 namespace AuthGateTests.Unit.Controllers
 {
     public class AuthControllerTests
     {
 
-        private static (Mock<FakeUserManager>, Mock<FakeSignInManager<ApplicationUser>>, Mock<FakeRoleManager<IdentityRole>>, Mock<IConfiguration>, Mock<ILogger<AuthController>>) GetMocks()
+        private static (
+            Mock<FakeUserManager>, 
+            Mock<FakeSignInManager<ApplicationUser>>, 
+            Mock<FakeRoleManager<IdentityRole>>, 
+            Mock<IConfiguration>, 
+            Mock<ILogger<AuthController>>,
+            Mock<IMessagingPublisherService>,
+            Mock<IFileValidationService>
+            ) GetMocks()
         {
             var userManagerMock = new Mock<FakeUserManager>();
             var httpContextAccessorMock = new Mock<IHttpContextAccessor>();
@@ -56,17 +66,21 @@ namespace AuthGateTests.Unit.Controllers
 
             var mockLogger = new Mock<ILogger<AuthController>>();
 
+            var mockRabbit = new Mock<IMessagingPublisherService>();
+
+            var mockFile = new Mock<IFileValidationService>();
+
             var testJWtKey = "pnXhunyWll1LgERT86wXwMH5I6ieQC2M";
             mockConfig.Setup(c => c["JwtKey"]).Returns(testJWtKey);
 
-            return (userManagerMock, signInManagerMock, roleManagerMock, mockConfig, mockLogger);
+            return (userManagerMock, signInManagerMock, roleManagerMock, mockConfig, mockLogger, mockRabbit, mockFile);
         }
 
         [Fact]
         public async Task RegisterAdmin_ValidModel_ReturnsOk()
         {
             // Arrange
-            var (userManagerMock, signInManagerMock, roleManagerMock, mockConfig, mockLogger) = GetMocks();
+            var (userManagerMock, signInManagerMock, roleManagerMock, mockConfig, mockLogger, mockRabbit, mockFile) = GetMocks();
 
             userManagerMock.Setup(mock => mock.CreateAsync(It.IsAny<AdminUser>(), It.IsAny<string>()))
                            .ReturnsAsync(IdentityResult.Success);
@@ -80,7 +94,7 @@ namespace AuthGateTests.Unit.Controllers
             userManagerMock.Setup(mock => mock.AddToRoleAsync(It.IsAny<AdminUser>(), "Admin"))
                        .ReturnsAsync(IdentityResult.Success);
 
-            var controller = new AuthController(userManagerMock.Object, signInManagerMock.Object, roleManagerMock.Object, mockConfig.Object, mockLogger.Object);
+            var controller = new AuthController(userManagerMock.Object, signInManagerMock.Object, roleManagerMock.Object, mockConfig.Object, mockLogger.Object, mockFile.Object, mockRabbit.Object);
             var model = new AdminRegisterDto { Email = "test@example.com", Password = "Password@1" };
 
             // Act
@@ -98,8 +112,8 @@ namespace AuthGateTests.Unit.Controllers
         public async Task RegisterAdmin_InvalidModel_ReturnsBadRequest()
         {
             // Arrange
-            var (userManagerMock, signInManagerMock, roleManagerMock, mockConfig, mockLogger) = GetMocks();
-            var controller = new AuthController(userManagerMock.Object, signInManagerMock.Object, roleManagerMock.Object, mockConfig.Object, mockLogger.Object);
+            var (userManagerMock, signInManagerMock, roleManagerMock, mockConfig, mockLogger, mockRabbit, mockFile) = GetMocks();
+            var controller = new AuthController(userManagerMock.Object, signInManagerMock.Object, roleManagerMock.Object, mockConfig.Object, mockLogger.Object, mockFile.Object, mockRabbit.Object);
             controller.ModelState.AddModelError("Email", "Email is required.");
             var model = new AdminRegisterDto { Email = "", Password = "" };
 
@@ -117,9 +131,9 @@ namespace AuthGateTests.Unit.Controllers
         public async Task RegisterAdmin_UserCreationFailed_ReturnsBadRequestWithErrors()
         {
             // Arrange
-            var (userManagerMock, signInManagerMock, roleManagerMock, mockConfig, mockLogger) = GetMocks();
+            var (userManagerMock, signInManagerMock, roleManagerMock, mockConfig, mockLogger, mockRabbit, mockFile) = GetMocks();
 
-            var controller = new AuthController(userManagerMock.Object, signInManagerMock.Object, roleManagerMock.Object, mockConfig.Object, mockLogger.Object);
+            var controller = new AuthController(userManagerMock.Object, signInManagerMock.Object, roleManagerMock.Object, mockConfig.Object, mockLogger.Object, mockFile.Object, mockRabbit.Object);
             var error = new IdentityError { Code = "DuplicateEmail", Description = "Email is already taken." };
             userManagerMock.Setup(mock => mock.CreateAsync(It.IsAny<AdminUser>(), It.IsAny<string>()))
                    .ReturnsAsync(IdentityResult.Failed(error));
@@ -149,7 +163,7 @@ namespace AuthGateTests.Unit.Controllers
         [Fact]
         public async Task Login_ValidCredentials_ReturnsOk()
         {
-            var (userManagerMock, signInManagerMock, roleManagerMock, mockConfig, mockLogger) = GetMocks();
+            var (userManagerMock, signInManagerMock, roleManagerMock, mockConfig, mockLogger, mockRabbit, mockFile) = GetMocks();
 
             var role = "Admin";
 
@@ -167,7 +181,7 @@ namespace AuthGateTests.Unit.Controllers
             signInManagerMock.Setup(mock => mock.PasswordSignInAsync(user, It.IsAny<string>(), true, false))
                              .ReturnsAsync(Microsoft.AspNetCore.Identity.SignInResult.Success);
 
-            var controller = new AuthController(userManagerMock.Object, signInManagerMock.Object, roleManagerMock.Object, mockConfig.Object, mockLogger.Object);
+            var controller = new AuthController(userManagerMock.Object, signInManagerMock.Object, roleManagerMock.Object, mockConfig.Object, mockLogger.Object, mockFile.Object, mockRabbit.Object);
             var model = new LoginDto { Email = "test@example.com", Password = "password" };
 
             // Act
@@ -185,12 +199,12 @@ namespace AuthGateTests.Unit.Controllers
         public async Task Login_InvalidCredentials_ReturnsUnauthorized()
         {
             // Arrange
-            var (userManagerMock, signInManagerMock, roleManagerMock, mockConfig, mockLogger) = GetMocks();
+            var (userManagerMock, signInManagerMock, roleManagerMock, mockConfig, mockLogger, mockRabbit, mockFile) = GetMocks();
 
             userManagerMock.Setup(mock => mock.FindByEmailAsync(It.IsAny<string>()))
                            .ReturnsAsync((ApplicationUser)null);
 
-            var controller = new AuthController(userManagerMock.Object, signInManagerMock.Object, roleManagerMock.Object, mockConfig.Object, mockLogger.Object);
+            var controller = new AuthController(userManagerMock.Object, signInManagerMock.Object, roleManagerMock.Object, mockConfig.Object, mockLogger.Object, mockFile.Object, mockRabbit.Object);
             var model = new LoginDto { Email = "nonexistent@example.com", Password = "password" };
 
             // Act
@@ -207,13 +221,13 @@ namespace AuthGateTests.Unit.Controllers
         public async Task Logout_LogoutSuccessful_ReturnsOk()
         {
             // Arrange
-            var (userManagerMock, signInManagerMock, roleManagerMock, mockConfig, mockLogger) = GetMocks();
+            var (userManagerMock, signInManagerMock, roleManagerMock, mockConfig, mockLogger, mockRabbit, mockFile) = GetMocks();
             var logoutDto = new LogoutDto { Email = "user@example.com" };
 
             signInManagerMock.Setup(mock => mock.SignOutAsync())
                              .Returns(Task.CompletedTask);
 
-            var controller = new AuthController(userManagerMock.Object, signInManagerMock.Object, roleManagerMock.Object, mockConfig.Object, mockLogger.Object);
+            var controller = new AuthController(userManagerMock.Object, signInManagerMock.Object, roleManagerMock.Object, mockConfig.Object, mockLogger.Object, mockFile.Object, mockRabbit.Object);
 
             // Act
             var result = await controller.Logout(logoutDto) as OkResult;
@@ -229,7 +243,7 @@ namespace AuthGateTests.Unit.Controllers
         public async Task RegisterRider_ValidModel_ReturnsOk()
         {
             // Arrange
-            var (userManagerMock, signInManagerMock, roleManagerMock, mockConfig, mockLogger) = GetMocks();
+            var (userManagerMock, signInManagerMock, roleManagerMock, mockConfig, mockLogger, mockRabbit, mockFile) = GetMocks();
             userManagerMock.Setup(mock => mock.CreateAsync(It.IsAny<RiderUser>(), It.IsAny<string>()))
                            .ReturnsAsync(IdentityResult.Success);
 
@@ -241,16 +255,27 @@ namespace AuthGateTests.Unit.Controllers
 
             userManagerMock.Setup(mock => mock.AddToRoleAsync(It.IsAny<RiderUser>(), "Rider"))
                        .ReturnsAsync(IdentityResult.Success);
-            var controller = new AuthController(userManagerMock.Object, signInManagerMock.Object, roleManagerMock.Object, mockConfig.Object, mockLogger.Object);
+            var controller = new AuthController(userManagerMock.Object, signInManagerMock.Object, roleManagerMock.Object, mockConfig.Object, mockLogger.Object, mockFile.Object, mockRabbit.Object);
+            //mock file
+            var content = "Hello World from a Fake File";
+            var fileName = "test.pdf";
+            var stream = new MemoryStream();
+            var writer = new StreamWriter(stream);
+            writer.Write(content);
+            writer.Flush();
+            stream.Position = 0;
+            IFormFile file = new FormFile(stream, 0, stream.Length, "id_from_form", fileName);
+
             var model = new RiderRegisterDto
             {
+                Name = "Teste",
                 Email = "test@example.com",
                 Password = "password",
                 CNPJ = "12345678901234",
-                DataNascimento = new System.DateTime(1990, 1, 1),
-                NumeroCNH = "1234567890",
-                TipoCNH = "A",
-                ImagemCNH = "base64encodedimage"
+                DateOfBirth = new System.DateTime(1990, 1, 1),
+                CNHNumber = "1234567890",
+                CNHType = "A",
+                CNHImage = file
             };
 
             // Act
@@ -261,26 +286,36 @@ namespace AuthGateTests.Unit.Controllers
             Assert.Equal(200, result.StatusCode);
             Assert.NotNull(result.Value);
             userManagerMock.Verify(mock => mock.CreateAsync(It.IsAny<RiderUser>(), It.IsAny<string>()), Times.Once);
-            signInManagerMock.Verify(mock => mock.SignInAsync(It.IsAny<RiderUser>(), false, null), Times.Once);
         }
 
         [Fact]
         public async Task RegisterRider_InvalidModel_ReturnsBadRequest()
         {
             // Arrange
-            var (userManagerMock, signInManagerMock, roleManagerMock, mockConfig, mockLogger) = GetMocks();
-            var controller = new AuthController(userManagerMock.Object, signInManagerMock.Object, roleManagerMock.Object, mockConfig.Object, mockLogger.Object);
+            var (userManagerMock, signInManagerMock, roleManagerMock, mockConfig, mockLogger, mockRabbit, mockFile) = GetMocks();
+            var controller = new AuthController(userManagerMock.Object, signInManagerMock.Object, roleManagerMock.Object, mockConfig.Object, mockLogger.Object, mockFile.Object, mockRabbit.Object);
             controller.ModelState.AddModelError("Email", "Email is required.");
+
+            //mock file
+            var content = "Hello World from a Fake File";
+            var fileName = "test.pdf";
+            var stream = new MemoryStream();
+            var writer = new StreamWriter(stream);
+            writer.Write(content);
+            writer.Flush();
+            stream.Position = 0;
+            IFormFile file = new FormFile(stream, 0, stream.Length, "id_from_form", fileName);
 
             var model = new RiderRegisterDto
             {
+                Name = "test",
                 Email = "test",
                 Password = "password",
                 CNPJ = "12345678901234",
-                DataNascimento = new System.DateTime(1990, 1, 1),
-                NumeroCNH = "1234567890",
-                TipoCNH = "A",
-                ImagemCNH = "base64encodedimage"
+                DateOfBirth = new System.DateTime(1990, 1, 1),
+                CNHNumber = "1234567890",
+                CNHType = "A",
+                CNHImage = file
             };
 
             // Act
@@ -298,20 +333,31 @@ namespace AuthGateTests.Unit.Controllers
         {
             // Arrange
             var error = new IdentityError { Code = "DuplicateEmail", Description = "Email is already taken." };
-            var (userManagerMock, signInManagerMock, roleManagerMock, mockConfig, mockLogger) = GetMocks();
+            var (userManagerMock, signInManagerMock, roleManagerMock, mockConfig, mockLogger, mockRabbit, mockFile) = GetMocks();
             userManagerMock.Setup(mock => mock.CreateAsync(It.IsAny<RiderUser>(), It.IsAny<string>()))
                            .ReturnsAsync(IdentityResult.Failed(error));
 
-            var controller = new AuthController(userManagerMock.Object, signInManagerMock.Object, roleManagerMock.Object, mockConfig.Object, mockLogger.Object);
+            var controller = new AuthController(userManagerMock.Object, signInManagerMock.Object, roleManagerMock.Object, mockConfig.Object, mockLogger.Object, mockFile.Object, mockRabbit.Object);
+
+            //mock file
+            var content = "Hello World from a Fake File";
+            var fileName = "test.pdf";
+            var stream = new MemoryStream();
+            var writer = new StreamWriter(stream);
+            writer.Write(content);
+            writer.Flush();
+            stream.Position = 0;
+            IFormFile file = new FormFile(stream, 0, stream.Length, "id_from_form", fileName);
             var model = new RiderRegisterDto
             {
+                Name = "test",
                 Email = "test@example.com",
                 Password = "Password@1",
                 CNPJ = "92.805.586/0001-80",
-                DataNascimento = new System.DateTime(1990, 1, 1),
-                NumeroCNH = "33022684637",
-                TipoCNH = "A",
-                ImagemCNH = "base64encodedimage"
+                DateOfBirth = new System.DateTime(1990, 1, 1),
+                CNHNumber = "33022684637",
+                CNHType = "A",
+                CNHImage = file
             };
 
             // Act

@@ -4,23 +4,53 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using Serilog.Formatting.Compact;
 using Serilog;
 using System.Text;
+using AuthGate.Configurations;
+using RabbitMQ.Client;
+using AuthGate.Services.RabbitMQ;
+using AuthGate.Services.File;
+using Serilog.Sinks.Elasticsearch;
 
 var builder = WebApplication.CreateBuilder(args);
 
-Log.Logger = new LoggerConfiguration()
-    .Enrich.FromLogContext()
-    .WriteTo.Console()
-    .WriteTo.Http(
-        requestUri: "http://localhost:5000",
-        queueLimitBytes: 10000000,
-        restrictedToMinimumLevel: Serilog.Events.LogEventLevel.Warning,
-        textFormatter: new CompactJsonFormatter())
-    .CreateLogger();
+var isTesting = builder.Environment.IsEnvironment("Testing");
 
+var applicationName = builder.Configuration["ApplicationName"];
+var elasticUrl = builder.Configuration["ElasticSearchURL"];
+
+var loggerConfig = new LoggerConfiguration()
+    .Enrich.FromLogContext()
+    .Enrich.WithProperty("ApplicationName", applicationName)
+    .WriteTo.Console();
+
+if (!isTesting)
+{
+    loggerConfig.WriteTo.Elasticsearch(new ElasticsearchSinkOptions(new Uri(elasticUrl))
+    {
+        AutoRegisterTemplate = true,
+        AutoRegisterTemplateVersion = AutoRegisterTemplateVersion.ESv7,
+        IndexFormat = $"{applicationName.ToLower()}-logs-{DateTime.UtcNow:yyyy.MM}"
+    });
+}
+
+Log.Logger = loggerConfig.CreateLogger();
 builder.Host.UseSerilog();
+
+var rabbitMQConfig = builder.Configuration.GetSection("RabbitMQ").Get<RabbitMQOptions>();
+builder.Services.AddSingleton<RabbitMQOptions>(rabbitMQConfig);
+
+builder.Services.AddSingleton<IConnection>(sp =>
+{
+    var rabbitMQOptions = sp.GetRequiredService<RabbitMQOptions>();
+    var factory = new ConnectionFactory()
+    {
+        HostName = rabbitMQOptions.HostName,
+        UserName = rabbitMQOptions.UserName,
+        Password = rabbitMQOptions.Password
+    };
+    return factory.CreateConnection();
+});
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -28,6 +58,8 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("Postgresql")));
+builder.Services.AddScoped<IMessagingPublisherService, MessagingPublisherService>();
+builder.Services.AddScoped<IFileValidationService, FileValidationService>();
 
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 {
@@ -64,6 +96,9 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+app.UseSwagger();
+app.UseSwaggerUI();
 
 app.UseHttpsRedirection();
 
