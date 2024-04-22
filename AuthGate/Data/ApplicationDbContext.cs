@@ -9,6 +9,7 @@ namespace AuthGate.Data
     {
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
         {
+            Database.EnsureCreated();
         }
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -23,7 +24,7 @@ namespace AuthGate.Data
                 .IsUnique();
 
             builder.Entity<RiderUser>()
-                .HasIndex(u => u.NumeroCNH)
+                .HasIndex(u => u.CNHNumber)
                 .IsUnique();
 
             SeedRoles(builder);

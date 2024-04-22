@@ -268,13 +268,14 @@ namespace AuthGateTests.Unit.Controllers
 
             var model = new RiderRegisterDto
             {
+                Name = "Teste",
                 Email = "test@example.com",
                 Password = "password",
                 CNPJ = "12345678901234",
-                DataNascimento = new System.DateTime(1990, 1, 1),
-                NumeroCNH = "1234567890",
-                TipoCNH = "A",
-                ImagemCNH = file
+                DateOfBirth = new System.DateTime(1990, 1, 1),
+                CNHNumber = "1234567890",
+                CNHType = "A",
+                CNHImage = file
             };
 
             // Act
@@ -307,13 +308,14 @@ namespace AuthGateTests.Unit.Controllers
 
             var model = new RiderRegisterDto
             {
+                Name = "test",
                 Email = "test",
                 Password = "password",
                 CNPJ = "12345678901234",
-                DataNascimento = new System.DateTime(1990, 1, 1),
-                NumeroCNH = "1234567890",
-                TipoCNH = "A",
-                ImagemCNH = file
+                DateOfBirth = new System.DateTime(1990, 1, 1),
+                CNHNumber = "1234567890",
+                CNHType = "A",
+                CNHImage = file
             };
 
             // Act
@@ -348,13 +350,14 @@ namespace AuthGateTests.Unit.Controllers
             IFormFile file = new FormFile(stream, 0, stream.Length, "id_from_form", fileName);
             var model = new RiderRegisterDto
             {
+                Name = "test",
                 Email = "test@example.com",
                 Password = "Password@1",
                 CNPJ = "92.805.586/0001-80",
-                DataNascimento = new System.DateTime(1990, 1, 1),
-                NumeroCNH = "33022684637",
-                TipoCNH = "A",
-                ImagemCNH = file
+                DateOfBirth = new System.DateTime(1990, 1, 1),
+                CNHNumber = "33022684637",
+                CNHType = "A",
+                CNHImage = file
             };
 
             // Act

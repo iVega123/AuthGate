@@ -60,7 +60,7 @@ namespace AuthGateTests.Integration
         {
             //mock file
             var content = "Hello World from a Fake File";
-            var fileName = "test.pdf";
+            var fileName = "test.png";
             var stream = new MemoryStream();
             var writer = new StreamWriter(stream);
             writer.Write(content);
@@ -73,13 +73,14 @@ namespace AuthGateTests.Integration
 
             // Create MultipartFormDataContent to hold form data
             var formData = new MultipartFormDataContent();
+            formData.Add(new StringContent("Caio"), "Name");
             formData.Add(new StringContent("rider@example.com"), "Email");
             formData.Add(new StringContent("A$Slol123ok"), "Password");
             formData.Add(new StringContent("92.805.586/0001-80"), "CNPJ");
-            formData.Add(new StringContent(DateTime.Now.AddYears(-30).ToString()), "DataNascimento");
-            formData.Add(new StringContent("33022684637"), "NumeroCNH");
-            formData.Add(new StringContent("A"), "TipoCNH");
-            formData.Add(new StreamContent(stream), "ImagemCNH", fileName);
+            formData.Add(new StringContent(DateTime.Now.AddYears(-30).ToString()), "DateOfBirth");
+            formData.Add(new StringContent("33022684637"), "CNHNumber");
+            formData.Add(new StringContent("A"), "CNHType");
+            formData.Add(new StreamContent(stream), "CNHImage", fileName);
 
             // Act
             var response = await client.PostAsync("/api/auth/register/rider", formData);
@@ -88,7 +89,7 @@ namespace AuthGateTests.Integration
             response.EnsureSuccessStatusCode();
 
             var responseContent = await response.Content.ReadAsStringAsync();
-            Assert.Contains("userId", responseContent);
+            Assert.Contains("Rider user successfully registered.", responseContent);
         }
 
         [Fact]

@@ -101,7 +101,7 @@ namespace AuthGate.Controllers
                 await _roleManager.CreateAsync(new IdentityRole("Rider"));
             }
 
-            var (isValid, parsedCNHType) = CnhValidator.ParseCNHType(model.TipoCNH);
+            var (isValid, parsedCNHType) = CnhValidator.ParseCNHType(model.CNHType);
             if (!isValid)
             {
                 ModelState.AddModelError("TipoCNH", "Invalid CNH Type");
@@ -111,14 +111,13 @@ namespace AuthGate.Controllers
             var riderUser = new RiderUser
             {
                 UserName = model.Email,
+                Name = model.Name,
                 Email = model.Email,
                 CNPJ = model.CNPJ,
-                DataNascimento = model.DataNascimento,
-                NumeroCNH = model.NumeroCNH,
-                TipoCNH = parsedCNHType
+                DateOfBirth = model.DateOfBirth,
+                CNHNumber = model.CNHNumber,
+                CNHType = parsedCNHType
             };
-
-            var (file, ext) = await _fileValidationService.ValidateAndConvertFileAsync(model.ImagemCNH);
 
             var result = await _userManager.CreateAsync(riderUser, model.Password);
             if (!result.Succeeded)
@@ -139,7 +138,11 @@ namespace AuthGate.Controllers
 
             _logger.LogInformation("Rider user {UserId} successfully registered.", riderUser.Id);
 
-            _messagingPublisherService.PublishImageStream(file, ext, riderUser.Id);
+            if (model.CNHImage != null)
+            {
+                var (file, ext) = await _fileValidationService.ValidateAndConvertFileAsync(model.CNHImage);
+                _messagingPublisherService.PublishImageStream(file, ext, riderUser.Id);
+            }
             _messagingPublisherService.PublishRiderInfo(convertRider(model, riderUser.Id));
 
             return Ok("Rider user successfully registered.");
@@ -220,11 +223,12 @@ namespace AuthGate.Controllers
         {
             return new RiderMQEntity()
             {
+                Name = model.Name,
                 UserId = id,
-                CNHNumber = model.NumeroCNH,
+                CNHNumber = model.CNHNumber,
                 CNPJ = model.CNPJ,
-                CNHType = model.TipoCNH,
-                DataNascimento = model.DataNascimento,
+                CNHType = model.CNHType,
+                DateOfBirth = model.DateOfBirth,
                 Email = model.Email,
             };
         }

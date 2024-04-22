@@ -2,7 +2,7 @@
 {
     public class FileValidationService : IFileValidationService
     {
-        private readonly string[] _permittedExtensions = { ".png", ".jpg", ".jpeg", ".bmp" };
+        private readonly string[] _permittedExtensions = { ".png", ".bmp" };
         private const long _maxFileSize = 8 * 1024 * 1024;
 
         public async Task<(Stream, string)> ValidateAndConvertFileAsync(IFormFile file)
